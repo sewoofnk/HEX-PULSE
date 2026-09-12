@@ -1,0 +1,40 @@
+data:text/html;charset=utf-8,<!DOCTYPE html><html lang="sk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>TOTP</title><style>body{background:#0F172A;color:#FFF;font-family:-apple-system,sans-serif;padding:20px;text-align:center}.box{max-width:360px;margin:0 auto}input{width:100%;padding:14px;background:#1E293B;border:1px solid #475569;color:#FFF;border-radius:10px;font-size:16px;margin-bottom:12px;box-sizing:border-box}button{width:100%;padding:14px;background:#3B82F6;color:#FFF;border:none;border-radius:10px;font-weight:bold;font-size:16px}.code{font-family:monospace;font-size:42px;font-weight:bold;letter-spacing:6px;margin:25px 0}.timer{color:#94A3B8;font-size:13px;margin-bottom:20px}</style></head><body><div class="box"><h2>Bezpečnostný kód</h2><div class="code" id="c">------</div><div class="timer" id="t">10s</div><input type="text" id="s" placeholder="Base32 kľúč"><button id="b">Uložiť</button></div><script>
+const K="totp_k";let sec=localStorage.getItem(K)||"";document.getElementById("s").value=sec;
+function b32dec(s){let a="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567",b="",r=[];for(let c of s.toUpperCase()){let i=a.indexOf(c);if(i>=0)b+=i.toString(2).padStart(5,"0")}for(let i=0;i+8<=b.length;i+=8)r.push(parseInt(b.substr(i,8),2));return new Uint8Array(r)}
+function str2bin(s){let r=[];for(let i=0;i<s.length;i++)r.push(s.charCodeAt(i));return r}
+function hmacSha1(key,data){
+let bKey=key.length>64?sha1(key):key,ipad=new Uint8Array(64),opad=new Uint8Array(64);ipad.fill(0x36);opad.fill(0x5c);
+for(let i=0;i<bKey.length;i++){ipad[i]^=bKey[i];opad[i]^=bKey[i]}
+return sha1Bytes(opad,sha1Bytes(ipad,data));
+}
+function sha1Bytes(k,d){let m=new Uint8Array(k.length+d.length);m.set(k);m.set(d,k.length);return sha1(m)}
+function sha1(msg){
+let l=msg.length,w=new Array(80),h0=0x67452301,h1=0xEFCDAB89,h2=0x98BADCFE,h3=0x10325476,h4=0xC3D2E1F0;
+let ml=l*8,nb=((l+9>>6)+1)*64,b=new Uint8Array(nb);b.set(msg);b[l]=0x80;
+let dv=new DataView(b.buffer);dv.setUint32(nb-4,ml);
+for(let i=0;i<nb;i+=64){
+let s=new DataView(b.buffer,i,64);for(let j=0;j<16;j++)w[j]=s.getUint32(j*4);
+for(let j=16;j<80;j++)w[j]=(w[j-3]^w[j-8]^w[j-14]^w[j-16])<<1|(w[j-3]^w[j-8]^w[j-14]^w[j-16])>>>31;
+let a=h0,c=h1,d=h2,e=h3,f=h4;
+for(let j=0;j<80;j++){
+let t=(j<20)?(c&d|~c&e)+0x5A827999:(j<40)?(c^d^e)+0x6ED9EBA1:(j<60)?(c&d|c&e|d&e)+0x8F1BBCDC:(c^d^e)+0xCA62C1D6;
+let nt=((a<<5)|(a>>>27))+t+e+w[j];e=d;d=c;c=(bWidthFix(bWidthFix(bWidthFix(b,bWidthFix),bWidthFix,bWidthFix,bWidthFix,bWidthFix)?(bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix):bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,bWidthFix,(b<<30)|(b>>>2));a=nt;
+}
+function bWidthFix(x){return x>>>0}
+h0=bWidthFix(h0+a);h1=bWidthFix(h1+c);h2=bWidthFix(h2+d);h3=bWidthFix(h3+e);h4=bWidthFix(h4+f);
+}
+let out=new Uint8Array(20),dvOut=new DataView(out.buffer);
+dvOut.setUint32(0,h0);dvOut.setUint32(4,h1);dvOut.setUint32(8,h2);dvOut.setUint32(12,h3);dvOut.setUint32(16,h4);return out;
+}
+function update(){
+if(!sec){document.getElementById("c").textContent="ZADAJ KĽÚČ";return}
+let ep=Math.floor(Date.now()/1000),cnt=Math.floor(ep/10),buf=new ArrayBuffer(8),dv=new DataView(buf);
+dv.setUint32(4,cnt);let keyBytes=b32dec(sec);if(!keyBytes.length)return;
+let hash=hmacSha1(keyBytes,new Uint8Array(buf)),offset=hash[19]&15;
+let code=((hash[offset]&127)<<24|(hash[offset+1]&255)<<16|(hash[offset+2]&255)<<8|(hash[offset+3]&255))%1000000;
+document.getElementById("c").textContent=String(code).padStart(6,"0").slice(0,3)+" "+String(code).padStart(6,"0").slice(3);
+document.getElementById("t").textContent=(10-(ep%10))+"s do zmeny";
+}
+document.getElementById("b").onclick=()=>{sec=document.getElementById("s").value.trim();localStorage.setItem(K,sec);alert("Uložené")};
+setInterval(update,500);update();
+</script></body></html>
